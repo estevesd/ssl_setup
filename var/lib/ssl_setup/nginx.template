@@ -1,13 +1,9 @@
 server {
-  server_name www.{{DOMAIN}};
-  return 301 https://{{DOMAIN}}\$request_uri;
-}
-server {
   listen 80;
   listen [::]:80 ipv6only=on;
 
   server_name {{DOMAIN}};
-  root {{WWW_PATH}};
+  root {{ROOT_PATH}};
 
   index index.html;
   location / {

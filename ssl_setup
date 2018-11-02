@@ -11,26 +11,58 @@ fi
 DOMAIN="$1"
 ROOT_PATH="$2"
 
-if [ -z "$ROOT_PATH" ]; then
-  ROOT_PATH="/var/www/$DOMAIN"
-  mkdir -p "$ROOT_PATH"
-  echo "Hello World!" >"$ROOT_PATH/index.html"
+DNS_IP=$(dig $DOMAIN +short)
+
+if [ -n "$DNS_IP" ]; then
+  if ip a | grep $DNS_IP >>/dev/null; then
+    echo "SUCCESS: $DOMAIN points to this machine."
+  else
+    echo "ERROR: There's a DNS record for $DOMAIN but it doesn't point to this machine."
+    exit 1
+  fi
+else
+  echo "ERROR: There's no DNS record for $DOMAIN."
+  exit 1
+fi
+DNS_WWW_IP=$(dig www.$DOMAIN +short)
+SET_WWW=
+if [ -n "$DNS_WWW_IP" ]; then
+  if ip a | grep $DNS_WWW_IP >>/dev/null; then
+    echo "SUCCESS: www.$DOMAIN points to this machine."
+    SET_WWW=YES
+  else
+    echo "WARNING: There's a DNS record for www.$DOMAIN but it doesn't point to this machine."
+    SET_WWW=NO
+  fi
+else
+  echo "WARNING: There's no DNS record for www.$DOMAIN."
+  SET_WWW=NO
 fi
 
-rm -f /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default /etc/nginx/sites-enabled/$DOMAIN
-cp /var/lib/ssl_setup/nginx.template /etc/nginx/sites-available/$DOMAIN
-sed -i -e "s/{{DOMAIN}}/$DOMAIN/" -e "s/{{ROOT_PATH}}/$ROOT_PATH/" /etc/nginx/sites-available/$DOMAIN
+if [ -z "$ROOT_PATH" ]; then
+  ROOT_PATH="/var/www/$DOMAIN"
+  [ -d "$ROOT_PATH" ] || mkdir -p "$ROOT_PATH"
+  [ -f "$ROOT_PATH/index.html" ] || echo "Hello World!" >"$ROOT_PATH/index.html"
+fi
 
+rm -f /etc/nginx/sites-{available,enabled}/default /etc/nginx/sites-{available,enabled}/$DOMAIN /etc/nginx/sites-{available,enabled}/www.$DOMAIN
+if [ -n "$SET_WWW" ] && [ "$SET_WWW" == "YES" ]; then
+  cat /var/lib/ssl_setup/nginx_www.template >/etc/nginx/sites-available/www.$DOMAIN
+  sed -i -e "s/{{DOMAIN}}/$DOMAIN/" /etc/nginx/sites-available/www.$DOMAIN
+  sudo ln -s /etc/nginx/sites-available/www.$DOMAIN /etc/nginx/sites-enabled/www.$DOMAIN
+  DOMAINS="--domains $DOMAIN,www.$DOMAIN"
+else
+  DOMAINS="--domain $DOMAIN"
+fi
+cat /var/lib/ssl_setup/nginx.template >/etc/nginx/sites-available/$DOMAIN
+sed -i -e "s/{{DOMAIN}}/$DOMAIN/" -e "s|{{ROOT_PATH}}|$ROOT_PATH|" /etc/nginx/sites-available/$DOMAIN
 sudo ln -s /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/$DOMAIN
 
-letsencrypt -n --nginx --domains $DOMAIN,www.$DOMAIN
-letsencrypt enhance --domains $DOMAIN,www.$DOMAIN --cert-name $DOMAIN --hsts --auto-hsts --redirect --uir --non-interactive --must-staple --staple-ocsp --nginx
+letsencrypt -n --nginx $DOMAINS
+letsencrypt enhance $DOMAINS --cert-name $DOMAIN --hsts --redirect --non-interactive --must-staple --staple-ocsp --nginx
 
 sed -i -e "s/443 ssl /443 ssl http2 /g" -e "s/443 ssl;/443 ssl http2;/g" /etc/nginx/sites-enabled/$DOMAIN
-
-cp /etc/letsencrypt/options-ssl-nginx.conf /etc/letsencrypt/options-ssl-nginx.conf.bkp
-cp /var/lib/ssl_setup /etc/letsencrypt/options-ssl-nginx.conf
-sed -i -e "s/{{DOMAIN}}/$DOMAIN/" /etc/letsencrypt/options-ssl-nginx.conf
+sed -i -e "s/443 ssl /443 ssl http2 /g" -e "s/443 ssl;/443 ssl http2;/g" /etc/nginx/sites-enabled/www.$DOMAIN
 
 systemctl restart nginx
 

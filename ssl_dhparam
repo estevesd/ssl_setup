@@ -5,4 +5,8 @@ if [ "$(id -u)" != "0" ]; then
   exit 1
 fi
 
-openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 4096
+if [ -n "$1" ];then
+  openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 4096
+else
+  cat $1 > /etc/letsencrypt/ssl-dhparams.pem
+fi

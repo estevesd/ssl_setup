@@ -1,0 +1,6 @@
+server {
+  listen 80;
+  listen [::]:80 ipv6only=on;
+  server_name www.{{DOMAIN}};
+  return 301 http://{{DOMAIN}}\$request_uri;
+}
