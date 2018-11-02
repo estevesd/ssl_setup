@@ -1,5 +1,8 @@
 # SSL setup
-Getting A+ 100% rating on SSLlabs test with nginx and letsencrypt  
+Getting A+ 100% rating on SSLlabs test with nginx and letsencrypt
+
+![SSL labs - A+ - 100%](https://raw.githubusercontent.com/estevesd/ssl_setup/master/ssllabs.png)
+
 Tested on Ubuntu 18.04  
 nginx >= 1.5.9  
 letsecncrypt >= 0.25  
