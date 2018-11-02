@@ -4,9 +4,16 @@ if [ "$(id -u)" != "0" ]; then
   exit 1
 fi
 
-cp ssl_{setup,renew,dhparam} /usr/local/bin
+SRC_PATH="$(dirname \"$0\")"
+SRC_PATH="$( (cd \"$SRC_PATH\" && pwd))"
+if [ -z "$SRC_PATH" ]; then
+  echo "No access to source directory"
+  exit 1 # fail
+fi
+
+cp $SRC_PATH/ssl_{setup,renew,dhparam} /usr/local/bin
 chmod 755 /usr/local/bin/ssl_{setup,renew,dhparam}
-cp -r var /
+cp -r $SRC_PATH/var /
 
 add-apt-repository --yes --no-update ppa:certbot/certbot
 apt update
