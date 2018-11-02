@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-18-04
+# https://cipherli.st/
+# https://scotthelme.co.uk/a-plus-rating-qualys-ssl-test/
+
+if [ "$(id -u)" != "0" ]; then
+  echo "This command must be run as root" 1>&2
+  exit 1
+fi
+
+DOMAIN="$1"
+ROOT_PATH="$2"
+
+if [ -z "$ROOT_PATH" ]; then
+  ROOT_PATH="/var/www/$DOMAIN"
+  mkdir -p "$ROOT_PATH"
+  echo "Hello World!" >"$ROOT_PATH/index.html"
+fi
+
+rm -f /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default /etc/nginx/sites-enabled/$DOMAIN
+cp /var/lib/ssl_setup/nginx.template /etc/nginx/sites-available/$DOMAIN
+sed -i -e "s/{{DOMAIN}}/$DOMAIN/" -e "s/{{ROOT_PATH}}/$ROOT_PATH/" /etc/nginx/sites-available/$DOMAIN
+
+sudo ln -s /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/$DOMAIN
+
+letsencrypt -n --nginx --domains $DOMAIN,www.$DOMAIN
+letsencrypt enhance --domains $DOMAIN,www.$DOMAIN --cert-name $DOMAIN --hsts --auto-hsts --redirect --uir --non-interactive --must-staple --staple-ocsp --nginx
+
+sed -i -e "s/443 ssl /443 ssl http2 /g" -e "s/443 ssl;/443 ssl http2;/g" /etc/nginx/sites-enabled/$DOMAIN
+
+cp /etc/letsencrypt/options-ssl-nginx.conf /etc/letsencrypt/options-ssl-nginx.conf.bkp
+cp /var/lib/ssl_setup /etc/letsencrypt/options-ssl-nginx.conf
+sed -i -e "s/{{DOMAIN}}/$DOMAIN/" /etc/letsencrypt/options-ssl-nginx.conf
+
+systemctl restart nginx
+
+dig caa $DOMAIN | grep letsencrypt.org >>/dev/null || echo "WARNING : Add CAA record on your DNS server"
+
+echo "Go to https://www.ssllabs.com/ssltest/analyze.html?d=$DOMAIN&latest=yes to check rating"
