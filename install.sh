@@ -19,7 +19,7 @@ add-apt-repository --yes --no-update ppa:certbot/certbot
 apt update
 apt install -y python-certbot-nginx nginx haveged
 
-# configure letsencrypt
+## configure letsencrypt
 if [ -z "$1" ]; then
   letsencrypt register --agree-tos --no-eff-email
 else
@@ -29,11 +29,15 @@ cat >>/etc/letsencrypt/cli.ini <<EOF
 
 # Use a 4096 bit RSA key instead of 2048
 rsa-key-size = 4096
+
+# reload nginx after certificates renewal
+post-hook = systemctl reload nginx
 EOF
 cp /etc/letsencrypt/options-ssl-nginx.conf /etc/letsencrypt/options-ssl-nginx.conf.bkp
 cp /var/lib/ssl_setup/options-ssl-nginx.conf /etc/letsencrypt/options-ssl-nginx.conf
+##
 
-# enable gzip in nginx
+## enable gzip in nginx
 if [ -z "$1" ]; then
   read -p "Do you want to tweak nginx configuration (enables gzip)? [y|n]" -n 1 -r
   echo ""
@@ -46,8 +50,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   grep "gzip_disable \"msie6\"" /etc/nginx/nginx.conf >>/dev/null || sed -i -e "s/gzip on;/gzip on;\n\tgzip_disable \"msie6\";/" /etc/nginx/nginx.conf
   sed -i "s/# gzip/gzip/" /etc/nginx/nginx.conf
 fi
+##
 
-# Configure firewall
+## Configure firewall
 if [ -z "$1" ]; then
   read -p "Do you want to configure the firewall (opens 22, 80 and 443)? [y|n]" -n 1 -r
   echo ""
@@ -63,8 +68,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   ufw delete allow 'Nginx HTTP'
   echo "y" | ufw enable
 fi
+##
 
-# Generate strong Diffie Hellman
+## Generate strong Diffie Hellman
 if [ -z "$1" ]; then
   read -p "Do you want to generate a Diffie Hellman? [y|n]" -n 1 -r
   echo ""
@@ -79,3 +85,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 else
   echo "You can still generate a Diffie Hellman later on by runnning : ssl_dhparam or ssl_dhparam my_dhparam.pem"
 fi
+##
+
+## INSTALLATION DONE
+echo "Installation done : run $(ssl_setup domain.example.com) to create your certificates and nginx configuration"

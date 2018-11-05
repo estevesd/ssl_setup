@@ -6,4 +6,3 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 letsencrypt renew >> /var/log/letsencrypt-renew.log
-systemctl reload nginx
