@@ -6,6 +6,10 @@ server {
   root {{ROOT_PATH}};
 
   index index.html;
+
+  access_log /var/log/nginx/{{DOMAIN}}-access.log;
+  error_log /var/log/nginx/{{DOMAIN}}-error.log;
+
   location / {
     try_files $uri $uri/ =404;
   }
