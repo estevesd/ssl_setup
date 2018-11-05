@@ -11,7 +11,8 @@ fi
 DOMAIN="$1"
 ROOT_PATH="$2"
 
-DNS_IP=$(dig $DOMAIN +short)
+FQDN=$(awk 'BEGIN {FS=".";OFS="."}{ print $(NF-1), $NF}' <<<$DOMAIN)
+DNS_IP=$(dig @$(dig $FQDN NS +short | head -n 1) $DOMAIN +short)
 
 if [ -n "$DNS_IP" ]; then
   if ip a | grep $DNS_IP >>/dev/null; then
@@ -22,6 +23,7 @@ if [ -n "$DNS_IP" ]; then
   fi
 else
   echo "ERROR: There's no DNS record for $DOMAIN."
+  echo "First add a DNS record for $DOMAIN"
   exit 1
 fi
 DNS_WWW_IP=$(dig www.$DOMAIN +short)
@@ -46,7 +48,7 @@ if [ -z "$ROOT_PATH" ]; then
 fi
 
 rm -f /etc/nginx/sites-{available,enabled}/default /etc/nginx/sites-{available,enabled}/$DOMAIN /etc/nginx/sites-{available,enabled}/www.$DOMAIN
-if [ -n "$SET_WWW" ] && [ "$SET_WWW" == "YES" ]; then
+if [ "$SET_WWW" == "YES" ]; then
   cat /var/lib/ssl_setup/nginx_www.template >/etc/nginx/sites-available/www.$DOMAIN
   sed -i -e "s/{{DOMAIN}}/$DOMAIN/" /etc/nginx/sites-available/www.$DOMAIN
   sudo ln -s /etc/nginx/sites-available/www.$DOMAIN /etc/nginx/sites-enabled/www.$DOMAIN
@@ -62,7 +64,7 @@ letsencrypt -n --nginx $DOMAINS
 letsencrypt enhance $DOMAINS --cert-name $DOMAIN --hsts --redirect --non-interactive --must-staple --staple-ocsp --nginx
 
 sed -i -e "s/443 ssl /443 ssl http2 /g" -e "s/443 ssl;/443 ssl http2;/g" /etc/nginx/sites-enabled/$DOMAIN
-sed -i -e "s/443 ssl /443 ssl http2 /g" -e "s/443 ssl;/443 ssl http2;/g" /etc/nginx/sites-enabled/www.$DOMAIN
+[ "$SET_WWW" == "YES" ] && sed -i -e "s/443 ssl /443 ssl http2 /g" -e "s/443 ssl;/443 ssl http2;/g" /etc/nginx/sites-enabled/www.$DOMAIN
 
 systemctl restart nginx
 
