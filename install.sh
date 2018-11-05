@@ -4,8 +4,8 @@ if [ "$(id -u)" != "0" ]; then
   exit 1
 fi
 
-SRC_PATH="$(dirname \"$0\")"
-SRC_PATH="$( (cd \"$SRC_PATH\" && pwd))"
+SRC_PATH=$(dirname "$0")
+SRC_PATH=$( (cd "$SRC_PATH" && pwd))
 if [ -z "$SRC_PATH" ]; then
   echo "No access to source directory"
   exit 1 # fail
@@ -35,7 +35,8 @@ cp /var/lib/ssl_setup/options-ssl-nginx.conf /etc/letsencrypt/options-ssl-nginx.
 
 # enable gzip in nginx
 if [ -z "$1" ]; then
-  read -p "Do you want to tweak nginx configuration (enables gzip)? [Y|N]" -n 1 -r
+  read -p "Do you want to tweak nginx configuration (enables gzip)? [y|n]" -n 1 -r
+  echo ""
 else
   if [ "$4" == "nginx_tweak" ]; then
     REPLY="Y"
@@ -48,7 +49,8 @@ fi
 
 # Configure firewall
 if [ -z "$1" ]; then
-  read -p "Do you want to configure the firewall (opens 22, 80 and 443)? [Y|N]" -n 1 -r
+  read -p "Do you want to configure the firewall (opens 22, 80 and 443)? [y|n]" -n 1 -r
+  echo ""
 else
   if [ "$4" == "firewall_conf" ]; then
     REPLY="Y"
@@ -64,7 +66,8 @@ fi
 
 # Generate strong Diffie Hellman
 if [ -z "$1" ]; then
-  read -p "Do you want to generate a Diffie Hellman? [Y|N]" -n 1 -r
+  read -p "Do you want to generate a Diffie Hellman? [y|n]" -n 1 -r
+  echo ""
 else
   if [ -n "$2" ] && [ "$2" == "dh" ]; then
     REPLY="Y"
