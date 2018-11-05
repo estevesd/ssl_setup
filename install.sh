@@ -33,7 +33,7 @@ rsa-key-size = 4096
 # reload nginx after certificates renewal
 post-hook = systemctl reload nginx
 EOF
-cp /etc/letsencrypt/options-ssl-nginx.conf /etc/letsencrypt/options-ssl-nginx.conf.bkp
+[ -f /etc/letsencrypt/options-ssl-nginx.conf.bkp ] || cp /etc/letsencrypt/options-ssl-nginx.conf /etc/letsencrypt/options-ssl-nginx.conf.bkp
 cp /var/lib/ssl_setup/options-ssl-nginx.conf /etc/letsencrypt/options-ssl-nginx.conf
 ##
 
