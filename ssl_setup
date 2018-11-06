@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-18-04
-# https://cipherli.st/
-# https://scotthelme.co.uk/a-plus-rating-qualys-ssl-test/
 
 if [ "$(id -u)" != "0" ]; then
   echo "This command must be run as root" 1>&2
@@ -9,10 +6,12 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 DOMAIN="$1"
-ROOT_PATH="$2"
+STRENGTH="$2"
+[ -z "$STRENGTH" ] && STRENGTH="modern"
+TEMPLATES="/var/lib/ssl_setup"
 
 FQDN=$(awk 'BEGIN {FS=".";OFS="."}{ print $(NF-1), $NF}' <<<$DOMAIN)
-DNS_IP=$(dig @$(dig $FQDN NS +short | head -n 1) $DOMAIN +short)
+DNS_IP=$(dig "@$(dig $FQDN NS +short | head -n 1)" $DOMAIN +short)
 
 if [ -n "$DNS_IP" ]; then
   if ip a | grep $DNS_IP >>/dev/null; then
@@ -41,33 +40,54 @@ else
   SET_WWW=NO
 fi
 
-if [ -z "$ROOT_PATH" ]; then
+# Create root directory and nginx configuration if this domain is not already set in nginx
+if ! cat /etc/nginx/nginx.conf /etc/nginx/conf.d/* /etc/nginx/sites-{available,enabled}/* | grep "server_name .*ssltst.wicastr.us.*;"; then
   ROOT_PATH="/var/www/$DOMAIN"
   [ -d "$ROOT_PATH" ] || mkdir -p "$ROOT_PATH"
-  [ -f "$ROOT_PATH/index.html" ] || echo "Hello World!" >"$ROOT_PATH/index.html"
+  [ -f "$ROOT_PATH/index.html" ] || echo "$DOMAIN says : Hello World!" >"$ROOT_PATH/index.html"
+  rm -f /etc/nginx/sites-{available,enabled}/$DOMAIN /etc/nginx/sites-{available,enabled}/www.$DOMAIN
+  if [ "$SET_WWW" == "YES" ]; then
+    cat /var/lib/ssl_setup/nginx_www.template >/etc/nginx/sites-available/www.$DOMAIN
+    sed -i -e "s/{{DOMAIN}}/$DOMAIN/" /etc/nginx/sites-available/www.$DOMAIN
+    sudo ln -s /etc/nginx/sites-available/www.$DOMAIN /etc/nginx/sites-enabled/www.$DOMAIN
+    DOMAINS="--domains $DOMAIN,www.$DOMAIN"
+  else
+    DOMAINS="--domain $DOMAIN"
+  fi
+  cat /var/lib/ssl_setup/nginx.template >/etc/nginx/sites-available/$DOMAIN
+  sed -i -e "s/{{DOMAIN}}/$DOMAIN/" -e "s|{{ROOT_PATH}}|$ROOT_PATH|" /etc/nginx/sites-available/$DOMAIN
+  sudo ln -s /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/$DOMAIN
 fi
 
-rm -f /etc/nginx/sites-{available,enabled}/default /etc/nginx/sites-{available,enabled}/$DOMAIN /etc/nginx/sites-{available,enabled}/www.$DOMAIN
-if [ "$SET_WWW" == "YES" ]; then
-  cat /var/lib/ssl_setup/nginx_www.template >/etc/nginx/sites-available/www.$DOMAIN
-  sed -i -e "s/{{DOMAIN}}/$DOMAIN/" /etc/nginx/sites-available/www.$DOMAIN
-  sudo ln -s /etc/nginx/sites-available/www.$DOMAIN /etc/nginx/sites-enabled/www.$DOMAIN
-  DOMAINS="--domains $DOMAIN,www.$DOMAIN"
-else
-  DOMAINS="--domain $DOMAIN"
-fi
-cat /var/lib/ssl_setup/nginx.template >/etc/nginx/sites-available/$DOMAIN
-sed -i -e "s/{{DOMAIN}}/$DOMAIN/" -e "s|{{ROOT_PATH}}|$ROOT_PATH|" /etc/nginx/sites-available/$DOMAIN
-sudo ln -s /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/$DOMAIN
-
+# Generate certificates
 letsencrypt -n --nginx $DOMAINS
+# Enhance security
 letsencrypt enhance $DOMAINS --cert-name $DOMAIN --hsts --redirect --non-interactive --must-staple --staple-ocsp --nginx
 
-sed -i -e "s/443 ssl /443 ssl http2 /g" -e "s/443 ssl;/443 ssl http2;/g" /etc/nginx/sites-enabled/$DOMAIN
-[ "$SET_WWW" == "YES" ] && sed -i -e "s/443 ssl /443 ssl http2 /g" -e "s/443 ssl;/443 ssl http2;/g" /etc/nginx/sites-enabled/www.$DOMAIN
+NGINX_VERSION=$(nginx -v 2>&1 | awk -F'[ /]' '{print $4}')
+while read MATCH; do
+  [ -z "$MATCH" ] && continue
+  LINE=$(awk 'BEGIN{FS=":"} {print $NF}' <<<"$MATCH")
+  FILE=$(awk 'BEGIN{FS=":";OFS=":"} {$NF="";print $0}' <<<"$MATCH" | sed "s/:$//")
+  # replace each occurence of : include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+  # with : include /etc/letsencrypt/live/$DOMAIN/nginx.conf; # managed by Certbot
+  # bit only when associated to : ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem; # managed by Certbot
+  sed -i -e "$((LINE + 1))s|\(include /etc/letsencrypt/\)options-ssl-\(nginx.conf\)|\1live/${DOMAIN}/nginx.conf|" $FILE
+
+  # replace : ssl_dhparam .*; # managed by Certbot
+  sed -e "$((LINE + 2))s|\(ssl_dhparam \).*;|\1live/${DOMAIN}/dhparam.pem;|"
+
+  if [ "1.9.5" = "$(echo -e "1.9.5\n$NGINX_VERSION" | sort -V | head -n1)" ]; then
+    # Add http2 on listen lines associated to : ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem; # managed by Certbot
+    sed -i -e "$((LINE - 2))s/443 ssl \?\([i;]\)/443 ssl http2 \1/" $FILE
+    sed -i -e "$((LINE - 3))s/443 ssl \?\([i;]\)/443 ssl http2 \1/" $FILE
+  fi
+
+done <<<"$(grep -Hnos /$DOMAIN/privkey.pem /etc/nginx/{conf.d,sites-available}/* | awk 'BEGIN {FS=":";OFS=":"} NF{NF--};1')"
+cp $TEMPLATES/ciphers/$STRENGTH /etc/letsencrypt/live/${DOMAIN}/nginx.conf
 
 systemctl restart nginx
 
-dig caa $DOMAIN | grep letsencrypt.org >>/dev/null || echo "WARNING : Add CAA record on your DNS server"
+dig caa "$DOMAIN" | grep letsencrypt.org >>/dev/null || echo "WARNING : Add CAA record on your DNS server"
 
 echo "Go to https://www.ssllabs.com/ssltest/analyze.html?d=$DOMAIN&latest=yes to check rating"

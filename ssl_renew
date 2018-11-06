@@ -1,8 +1,3 @@
 #!/usr/bin/env bash
 
-if [ "$(id -u)" != "0" ]; then
-  echo "This command must be run as root" 1>&2
-  exit 1
-fi
-
-letsencrypt renew >> /var/log/letsencrypt-renew.log
+letsencrypt renew $([ -n "$1" ] && [ "$1" == "force" ] && echo "--force-renew") >> /var/log/letsencrypt/letsencrypt.log

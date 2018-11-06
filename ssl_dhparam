@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
+# Usage : ssl_dhparam [domain] [size|file] [0|1](generate)
 
 if [ "$(id -u)" != "0" ]; then
   echo "This command must be run as root" 1>&2
   exit 1
 fi
 
-if [ -n "$1" ];then
-  openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 4096
+DOMAIN=$1
+SIZE=$2
+
+TEMPLATES="/var/lib/ssl_setup"
+
+if [ -n "$3" ] && [ "$3" == "1" ];then
+  openssl dhparam -out /etc/letsencrypt/live/${DOMAIN}/dhparam.pem $SIZE
 else
-  cat $1 > /etc/letsencrypt/ssl-dhparams.pem
+  if [ -f "$SIZE" ];then
+    cat $1 > /etc/letsencrypt/live/${DOMAIN}/dhparam.pem
+  else
+    cp $TEMPLATES/ffdhe/ffdhe${SIZE}.pem /etc/letsencrypt/live/${DOMAIN}/dhparam.pem
+  fi
 fi

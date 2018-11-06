@@ -33,8 +33,6 @@ rsa-key-size = 4096
 # reload nginx after certificates renewal
 post-hook = systemctl reload nginx
 EOF
-[ -f /etc/letsencrypt/options-ssl-nginx.conf.bkp ] || cp /etc/letsencrypt/options-ssl-nginx.conf /etc/letsencrypt/options-ssl-nginx.conf.bkp
-cp /var/lib/ssl_setup/options-ssl-nginx.conf /etc/letsencrypt/options-ssl-nginx.conf
 ##
 
 ## enable gzip in nginx
@@ -42,7 +40,7 @@ if [ -z "$1" ]; then
   read -p "Do you want to tweak nginx configuration (enables gzip)? [y|n]" -n 1 -r
   echo ""
 else
-  if [ "$4" == "nginx_tweak" ]; then
+  if [ "$2" == "nginx_tweak" ]; then
     REPLY="Y"
   fi
 fi
@@ -57,7 +55,7 @@ if [ -z "$1" ]; then
   read -p "Do you want to configure the firewall (opens 22, 80 and 443)? [y|n]" -n 1 -r
   echo ""
 else
-  if [ "$4" == "firewall_conf" ]; then
+  if [ "$3" == "firewall_conf" ]; then
     REPLY="Y"
   fi
 fi
@@ -67,23 +65,6 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   ufw allow 'Nginx Full'
   ufw delete allow 'Nginx HTTP'
   echo "y" | ufw enable
-fi
-##
-
-## Generate strong Diffie Hellman
-if [ -z "$1" ]; then
-  read -p "Do you want to generate a Diffie Hellman? [y|n]" -n 1 -r
-  echo ""
-else
-  if [ -n "$2" ] && [ "$2" == "dh" ]; then
-    REPLY="Y"
-  fi
-fi
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-  echo "if it gets too long, you can cancel (Ctrl+c), and generate later with : ssl_dhparam"
-  ssl_dhparam
-else
-  echo "You can still generate a Diffie Hellman later on by runnning : ssl_dhparam or ssl_dhparam my_dhparam.pem"
 fi
 ##
 
