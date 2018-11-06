@@ -78,8 +78,8 @@ or even forced
 https://www.ssllabs.com/ssltest/analyze.html?d=example.com&latest=yes
 
 ## Sources/Inspiration
-[Mozilla's Server Side TLS Guidelines ](https://wiki.mozilla.org/Security/Server_Side_TLS)
-[Mozilla SSL Configuration Generator](https://mozilla.github.io/server-side-tls/ssl-config-generator/)
-[cipherli.st](https://cipherli.st/)
-[Getting an A+ rating on the Qualys SSL Test](https://scotthelme.co.uk/a-plus-rating-qualys-ssl-test/)
-[How to secure nginx with let's encrypt on Ubuntu 18.04](https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-18-04)
+- [Mozilla's Server Side TLS Guidelines ](https://wiki.mozilla.org/Security/Server_Side_TLS)
+- [Mozilla SSL Configuration Generator](https://mozilla.github.io/server-side-tls/ssl-config-generator/)
+- [cipherli.st](https://cipherli.st/)
+- [Getting an A+ rating on the Qualys SSL Test](https://scotthelme.co.uk/a-plus-rating-qualys-ssl-test/)
+- [How to secure nginx with let's encrypt on Ubuntu 18.04](https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-18-04)
