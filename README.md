@@ -61,6 +61,8 @@ By default ffdhe2048 or ffdhe4096 will be used depending on expected compatibili
 `ssl_dhparam [example.com] [1024|2048|3072|4096|6144|8192]`
 
 ### Generating your own key
+`ssl_dhparam [example.com] [1024|2048|3072|4096|6144|8192] 1`
+
 Since it can take a very long time, you can do it an another machine :  
 `openssl dhparam -out my_dhparams.pem 4096`  
 and then run  
